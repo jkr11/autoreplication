@@ -3,7 +3,15 @@ name = "autoreplication"
 version = "0.1.0"
 description = "..."
 readme = "README.md"
+requires-python = ">=3.13"
 dependencies = [
     "pytest>=9.0.2",
     "ty-extensions>=0.1.0",
 ]
+
+
+[tool.ruff]
+indent-width = 2
+preview = true
+target-version = "py312"
+line-length = 150

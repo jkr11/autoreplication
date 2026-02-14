@@ -1,10 +1,9 @@
-
-# --- Injected Wrappers 
+# --- Injected Wrappers
 .auto_mkdir_wrapper <- function(orig_func) {
   function(x, file, ...) {
     if (missing(file)) {
-        # Handle cases where file is passed as first arg (x) implicitly
-        if (is.character(x)) file <- x
+      # Handle cases where file is passed as first arg (x) implicitly
+      if (is.character(x)) file <- x
     }
     if (!is.null(file) && is.character(file)) {
       dir_path <- dirname(file)
@@ -22,12 +21,12 @@
   }
 }
 
-read.csv   <- .auto_read_wrapper(utils::read.csv)
-read.csv2  <- .auto_read_wrapper(utils::read.csv2)
+read.csv <- .auto_read_wrapper(utils::read.csv)
+read.csv2 <- .auto_read_wrapper(utils::read.csv2)
 
-write.csv  <- .auto_mkdir_wrapper(utils::write.csv)
+write.csv <- .auto_mkdir_wrapper(utils::write.csv)
 write.csv2 <- .auto_mkdir_wrapper(utils::write.csv2)
-saveRDS    <- .auto_mkdir_wrapper(base::saveRDS)
+saveRDS <- .auto_mkdir_wrapper(base::saveRDS)
 # --- End Injection
 
 library(tidyverse)
