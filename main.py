@@ -2,7 +2,7 @@ import re
 import subprocess
 import logging
 from pathlib import Path
-from typing import List, Set, Dict
+from typing import List, Set
 import difflib
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -47,7 +47,7 @@ IGNORED_PACKAGES: set[str] = {"base", "utils", "stats", "methods", "graphics", "
 
 def parse_r_dependencies(script_text: str) -> Set[str]:
   """
-    Find all library dependencies of the R script. libraries can be given as follows: library(...), x <- c("...", ...); lapply(x, require|library, ...)
+  Find all library dependencies of the R script. libraries can be given as follows: library(...), x <- c("...", ...); lapply(x, require|library, ...)
   """
   dependencies = set()
 
@@ -111,6 +111,18 @@ def map_schedule_to_data(schedule: list[dict], available_data: list[str], thresh
 
       item["actual_rel_path"] = matches[0] if matches else None
   return schedule
+
+
+def get_io_lineage(schedule: list[dict]) -> tuple[set[str], set[str]]:
+  """Separates external dependencies from internal intermediates (i.e. read write cancels itself.)"""
+  seen_w, ext, intl = set(), set(), set()
+  for i in schedule:
+    p, is_r = i["path"], i["type"] == "read"
+    if is_r:
+      (intl if p in seen_w else ext).add(p)
+    else:
+      seen_w.add(p)
+  return ext, intl
 
 
 def remove_setwd(content: str) -> str:
@@ -230,4 +242,4 @@ def main(osf_id: str, base_dir: str = "."):
 
 if __name__ == "__main__":
   # Ensure you have a folder structure: ./wrgkb/<repo_folder>/script.R
-  main(osf_id="5hrgp")
+  main(osf_id="xqujs", base_dir = "examples")

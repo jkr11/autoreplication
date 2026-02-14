@@ -1,6 +1,5 @@
-import pytest
 from pathlib import Path
-from unittest.mock import mock_open, patch
+from unittest.mock import patch
 from main import parse_r_dependencies, inject_wrapper_code, remove_setwd
 
 
@@ -53,31 +52,34 @@ def test_data_extraction():
   assert len(schedule) == 4
   assert schedule[0]["path"] == "input/raw_metrics.csv"
   assert schedule[0]["type"] == "read"
-  
+
   assert schedule[1]["function"] == "write.csv"
   assert schedule[1]["type"] == "write"
-  
+
   assert schedule[2]["path"] == "models/final_model.rds"
-  
+
   assert schedule[3]["function"] == "fread"
   assert schedule[3]["type"] == "read"
 
 
-def test_data_discovery():
-  from main import discover_data_files
-  pass
+def test_io_lineage():
+  from main import get_io_lineage
 
-def test_schedule_matching():
-  from main import parse_io_schedule
+  sched = [{"type": "read", "path": "data/raw.csv"}, {"type": "write", "path": "out/temp.csv"}, {"type": "read", "path": "out/temp.csv"}]
+  ext, _ = get_io_lineage(sched)  # TODO: make this reduce the schedule
+  assert "data/raw.csv" in ext
+  assert "out/temp.csv" not in ext
+
 
 def test_pure_logic_mapping():
   from main import map_schedule_to_data
+
   available = ["raw/2023_data_FINAL.csv", "meta/labels.xlsx"]
-    
+
   schedule = [{"type": "read", "path": "data/data.csv"}]
-    
+
   result = map_schedule_to_data(schedule, available, threshold=0.4)
-    
+
   assert result[0]["actual_rel_path"] == "raw/2023_data_FINAL.csv"
 
 
