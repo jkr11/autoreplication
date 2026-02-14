@@ -1,0 +1,9 @@
+[project]
+name = "autoreplication"
+version = "0.1.0"
+description = "..."
+readme = "README.md"
+dependencies = [
+    "pytest>=9.0.2",
+    "ty-extensions>=0.1.0",
+]

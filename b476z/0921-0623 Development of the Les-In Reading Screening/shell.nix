@@ -4,11 +4,17 @@
 pkgs.mkShell {
   buildInputs = with pkgs; [
     R
-    rPackages.tidyverse rPackages.WrightMap rPackages.RColorBrewer rPackages.sfsmisc rPackages.pairwise rPackages.TAM
+    rPackages.RColorBrewer
+    rPackages.TAM
+    rPackages.WrightMap
+    rPackages.pairwise
+    rPackages.sfsmisc
+    rPackages.tidyverse
   ];
 
   shellHook = ''
     export R_LIBS_USER="/var/empty"
     export R_LIBS=""
+    export LANG="en_US.UTF-8"
   '';
 }
