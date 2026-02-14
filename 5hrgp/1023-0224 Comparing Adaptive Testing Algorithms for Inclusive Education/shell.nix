@@ -1,0 +1,9 @@
+
+{ pkgs ? import <nixpkgs> {} }:
+
+pkgs.mkShell {
+  buildInputs = with pkgs; [
+    R
+    rPackages.pairwise rPackages.tidyverse rPackages.catR
+  ];
+}
