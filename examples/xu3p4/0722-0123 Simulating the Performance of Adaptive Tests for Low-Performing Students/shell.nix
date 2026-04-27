@@ -4,7 +4,10 @@
 pkgs.mkShell {
   buildInputs = with pkgs; [
     R
-    rPackages.tidyverse rPackages.pairwise rPackages.TAM rPackages.catR
+    rPackages.TAM
+    rPackages.catR
+    rPackages.pairwise
+    rPackages.tidyverse
   ];
 
   shellHook = ''

@@ -1,9 +1,9 @@
-import re
-import subprocess
+from collections import deque, defaultdict
+import difflib
 import logging
 from pathlib import Path
-from typing import List, Set
-import difflib
+import re
+import subprocess
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ saveRDS    <- .auto_mkdir_wrapper(base::saveRDS)
 IGNORED_PACKAGES: set[str] = {"base", "utils", "stats", "methods", "graphics", "grDevices", "datasets"}
 
 
-def parse_r_dependencies(script_text: str) -> Set[str]:
+def parse_r_dependencies(script_text: str) -> set[str]:
   """
   Find all library dependencies of the R script. libraries can be given as follows: library(...), x <- c("...", ...); lapply(x, require|library, ...)
   """
@@ -94,12 +94,70 @@ def parse_io_schedule(script_text: str) -> list[dict[str, str]]:
   return schedule
 
 
+def gather_all_scripts_io(repo_root: Path, r_files: list[Path]) -> dict:
+  """
+  Map all files to their r/w schedule.
+  """
+  scripts_info = {}
+
+  for file_path in r_files:
+    content = file_path.read_text(errors="ignore")
+
+    raw_schedule = parse_io_schedule(content)
+
+    relative_name = str(file_path.relative_to(repo_root))
+    scripts_info[relative_name] = {
+      "reads": {item["path"] for item in raw_schedule if item["type"] == "read"},
+      "writes": {item["path"] for item in raw_schedule if item["type"] == "write"},
+    }
+
+  return scripts_info
+
+
+def build_script_graph(scripts_info: dict):
+  """
+  scripts_info: { "script_a.R": {"reads": [...], "writes": [...]}, ... }
+  """
+  adj_list = defaultdict(list)
+  in_degree = {script: 0 for script in scripts_info}
+
+  file_producers = {}
+  for script, io in scripts_info.items():
+    for out_file in io["writes"]:
+      file_producers[out_file] = script
+
+  for consumer_script, io in scripts_info.items():
+    for in_file in io["reads"]:
+      if in_file in file_producers:
+        producer_script = file_producers[in_file]
+        if producer_script != consumer_script:
+          adj_list[producer_script].append(consumer_script)
+          in_degree[consumer_script] += 1
+
+  return adj_list, in_degree
+
+
+def topological_sort(adj_list, in_degree):
+  queue = deque([u for u in in_degree if in_degree[u] == 0])
+  ordered_list = []
+
+  while queue:
+    u = queue.popleft()
+    ordered_list.append(u)
+    for v in adj_list[u]:
+      in_degree[v] -= 1
+      if in_degree[v] == 0:
+        queue.append(v)
+
+  return ordered_list
+
+
 # def find_matching_data(target:str, schedule : dict[str,str], data_files : list[str]) -> str:
 
 
 def discover_data_files(repo_path: Path) -> list[str]:  # TODO: return a dict {analysis: [R,py,etc..], data : [csv, xls, ..], supp : [pdf, docx]}
   DATA_EXTS = {".csv", ".rds", ".Rda", ".xlsx", ".xls", ".txt", ".tsv"}
-  return [str(p.relative_to(repo_path) for p in repo_path.rglob("*") if p.suffix.lower() in DATA_EXTS)]
+  return [str(p.relative_to(repo_path)) for p in repo_path.rglob("*") if p.suffix.lower() in DATA_EXTS]
 
 
 def map_schedule_to_data(schedule: list[dict], available_data: list[str], threshold: float = 0.5):
@@ -147,7 +205,7 @@ def inject_wrapper_code(content: str) -> str:
   return "\n".join(lines)
 
 
-def process_r_file(file_path: Path) -> Set[str]:
+def process_r_file(file_path: Path) -> set[str]:
   """
   Reads an R file, parses deps, cleans setwd, injects wrapper, and rewrites the file.
   Returns found dependencies.
@@ -167,7 +225,7 @@ def process_r_file(file_path: Path) -> Set[str]:
     return set()
 
 
-def generate_nix_shell(repo_path: Path, packages: List[str]) -> Path:
+def generate_nix_shell(repo_path: Path, packages: list[str]) -> Path:
   """Generates a shell.nix file in the repo path."""
 
   nix_pkgs_str = "\n    ".join([f"rPackages.{p}" for p in sorted(packages)])
@@ -222,7 +280,15 @@ def main(osf_id: str, base_dir: str = "."):
 
   logger.info(f"Processing repository at: {repo_root}")
 
-  r_files = list(repo_root.rglob("*.R")) + list(repo_root.rglob("*.Rmd"))
+  # I think we sort alphabetically, but   we would also have to do a topological sort based on the r/w order.
+  r_files = sorted(list(repo_root.rglob("*.R")) + list(repo_root.rglob("*.Rmd")))
+
+  scripts_io_map = gather_all_scripts_io(repo_root, r_files)
+  adj_list, in_degree = build_script_graph(scripts_io_map)
+  execution_order = topological_sort(adj_list, in_degree)
+
+  print(execution_order)
+
   if not r_files:
     logger.warning("No R files found.")
     return
@@ -242,4 +308,4 @@ def main(osf_id: str, base_dir: str = "."):
 
 if __name__ == "__main__":
   # Ensure you have a folder structure: ./wrgkb/<repo_folder>/script.R
-  main(osf_id="xqujs", base_dir = "examples")
+  main(osf_id="5hrgp", base_dir="examples")

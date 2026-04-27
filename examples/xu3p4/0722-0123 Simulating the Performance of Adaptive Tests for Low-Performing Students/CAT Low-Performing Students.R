@@ -1,3 +1,35 @@
+
+# --- Injected Wrappers 
+.auto_mkdir_wrapper <- function(orig_func) {
+  function(x, file, ...) {
+    if (missing(file)) {
+        # Handle cases where file is passed as first arg (x) implicitly
+        if (is.character(x)) file <- x
+    }
+    if (!is.null(file) && is.character(file)) {
+      dir_path <- dirname(file)
+      if (!dir.exists(dir_path)) {
+        dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
+      }
+    }
+    orig_func(x, file, ...)
+  }
+}
+
+.auto_read_wrapper <- function(orig_func) {
+  function(file, ...) {
+    orig_func(file, ..., fileEncoding = "UTF-8-BOM")
+  }
+}
+
+read.csv   <- .auto_read_wrapper(utils::read.csv)
+read.csv2  <- .auto_read_wrapper(utils::read.csv2)
+
+write.csv  <- .auto_mkdir_wrapper(utils::write.csv)
+write.csv2 <- .auto_mkdir_wrapper(utils::write.csv2)
+saveRDS    <- .auto_mkdir_wrapper(base::saveRDS)
+# --- End Injection
+
 #_______________________________________________________________________________
 # This Syntax belongs to:
 # Nikola Ebenbeck & Markus Gebhardt
